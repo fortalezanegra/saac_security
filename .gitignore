@@ -37,4 +37,5 @@ build/
 *.env
 
 GerarHash.java
+src/main/java/br/com/adbrascosmopolis/saac_security/models/GerarHash.java
 
