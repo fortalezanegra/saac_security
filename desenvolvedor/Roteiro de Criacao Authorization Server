@@ -1,0 +1,9 @@
+Linguagem: Java Spring Boot
+
+Dependencias:
+
+jjwt-api, jjwt-impl, jjwt-jackson e spring-boot-starter-security no arquivo [ pom.xml ]
+
+
+
+

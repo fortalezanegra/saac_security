@@ -1,0 +1,45 @@
+/*####################################################################################################################
+#########################     S C R I P T   D A T A B A S E   S A A C   S E C U R I T Y      #########################
+####################################################################################################################*/
+
+
+/* Removendo banco se existir */
+DROP DATABASE IF EXISTS saac_security;
+
+/* Criando Banco de Dados */
+CREATE DATABASE IF NOT EXISTS saac_security
+  DEFAULT CHARACTER SET utf8mb4 
+  COLLATE utf8mb4_unicode_ci;
+
+/* Selecionando Banco */
+USE saac_security;
+
+/*========================================================*/
+/*                    TABELA USUARIO                     */
+/*========================================================*/
+CREATE TABLE Usuario(
+  usuarioId BIGINT PRIMARY KEY AUTO_INCREMENT,
+  nome VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  senha VARCHAR(255) NOT NULL,
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  unidadeId BIGINT NOT NULL,
+  tipoEscopo ENUM('LOCAL', 'GLOBAL') NOT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deletedAt DATETIME DEFAULT NULL,
+  modifiedBy BIGINT DEFAULT NULL,
+
+  CONSTRAINT uk_usuarios_email UNIQUE (email, deletedAt),
+  INDEX idx_usuarios_unidade (unidadeId)
+
+) ENGINE=InnoDB;
+
+
+
+/*========================================================*/
+/*             USUARIO ADMINISTRADOR TESTE                */
+/*========================================================*/
+
+INSERT INTO Usuario (nome, email, senha, ativo, unidadeId, tipoEscopo, createdAt)
+VALUES ('Administrador Master', 'admin@adbrascosmopolis.com.br', '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO', TRUE, 1, 'GLOBAL', NOW());
