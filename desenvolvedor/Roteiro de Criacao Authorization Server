@@ -7,3 +7,380 @@ jjwt-api, jjwt-impl, jjwt-jackson e spring-boot-starter-security no arquivo [ po
 
 
 
+Perfeito, João! Agora os dados estão consistentes. Vamos para o endpoint de login + JWT.
+
+📦 1. Dependências já prontas
+Você já tem jjwt-api, jjwt-impl, jjwt-jackson e spring-boot-starter-security no pom.xml. ✅
+
+🔐 2. JwtService (geração e validação do token)
+java
+
+
+package br.com.adbrascosmopolis.saac_security.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.util.Date;
+import java.util.function.Function;
+
+@Component
+public class JwtService {
+
+    @Value("${jwt.secret}")
+    private String secret;
+
+    @Value("${jwt.expiration-ms}")
+    private long expirationMs;
+
+    private SecretKey getSignKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String gerarToken(String email, Long usuarioId, String escopo, Long unidadeId) {
+        Date agora = new Date();
+        Date expiracao = new Date(agora.getTime() + expirationMs);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("usuarioId", usuarioId)
+                .claim("escopo", escopo)
+                .claim("unidadeId", unidadeId)
+                .issuedAt(agora)
+                .expiration(expiracao)
+                .signWith(getSignKey())
+                .compact();
+    }
+
+    public String extrairEmail(String token) {
+        return extrairClaim(token, Claims::getSubject);
+    }
+
+    public boolean tokenValido(String token, String email) {
+        String emailDoToken = extrairEmail(token);
+        return emailDoToken.equals(email) && !tokenExpirado(token);
+    }
+
+    private boolean tokenExpirado(String token) {
+        return extrairClaim(token, Claims::getExpiration).before(new Date());
+    }
+
+    private <T> T extrairClaim(String token, Function<Claims, T> resolver) {
+        Claims claims = extrairTodasClaims(token);
+        return resolver.apply(claims);
+    }
+
+    private Claims extrairTodasClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSignKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+}
+⚙️ 3. application.properties — adicionar
+properties
+
+
+jwt.secret=COLOQUE_UMA_CHAVE_BASE64_DE_NO_MINIMO_256_BITS_AQUI
+jwt.expiration-ms=86400000
+⚠️ Importante: gere uma chave segura (não escreva "minhasenha123"). Rode este comando no terminal pra gerar uma chave Base64 de 256 bits:
+
+bash
+
+
+openssl rand -base64 32
+E nunca commite essa chave direto no application.properties em produção — use variável de ambiente (${JWT_SECRET}) via application.properties:
+
+properties
+
+
+jwt.secret=${JWT_SECRET}
+👤 4. UserDetailsService (ponte entre Usuario e Spring Security)
+java
+
+
+package br.com.adbrascosmopolis.saac_security.security;
+
+import br.com.adbrascosmopolis.saac_security.model.Usuario;
+import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+
+@Service
+public class CustomUserDetailsService implements UserDetailsService {
+
+    private final UsuarioRepository usuarioRepository;
+
+    public CustomUserDetailsService(UsuarioRepository usuarioRepository) {
+        this.usuarioRepository = usuarioRepository;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        Usuario usuario = usuarioRepository.findByEmailAndDeletedAtIsNull(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
+
+        return new User(
+                usuario.getEmail(),
+                usuario.getSenha(),
+                Collections.singletonList(() -> "ROLE_" + usuario.getScopeType().name())
+        );
+    }
+}
+Adicione esse método no UsuarioRepository:
+
+java
+
+
+Optional<Usuario> findByEmailAndDeletedAtIsNull(String email);
+🛂 5. JwtAuthFilter (intercepta cada requisição)
+java
+
+
+package br.com.adbrascosmopolis.saac_security.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
+
+    public JwtAuthFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                     @NonNull HttpServletResponse response,
+                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
+
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = authHeader.substring(7);
+        String email = jwtService.extrairEmail(token);
+
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            if (jwtService.tokenValido(token, email)) {
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
+🔐 6. SecurityConfig — ajustado com filtro JWT
+java
+
+
+package br.com.adbrascosmopolis.saac_security.config;
+
+import br.com.adbrascosmopolis.saac_security.security.JwtAuthFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider(UserDetailsService userDetailsService,
+                                                              PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/login").permitAll()
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}
+📨 7. DTOs de login
+java
+
+
+package br.com.adbrascosmopolis.saac_security.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public class LoginRequestDTO {
+
+    @NotBlank(message = "O e-mail é obrigatório")
+    @Email(message = "E-mail inválido")
+    private String email;
+
+    @NotBlank(message = "A senha é obrigatória")
+    private String senha;
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getSenha() { return senha; }
+    public void setSenha(String senha) { this.senha = senha; }
+}
+
+java
+
+
+package br.com.adbrascosmopolis.saac_security.dto;
+
+public class LoginResponseDTO {
+
+    private String token;
+    private String tipo = "Bearer";
+
+    public LoginResponseDTO(String token) {
+        this.token = token;
+    }
+
+    public String getToken() { return token; }
+    public String getTipo() { return tipo; }
+}
+
+🌐 8. AuthController
+java
+
+
+package br.com.adbrascosmopolis.saac_security.controller;
+
+import br.com.adbrascosmopolis.saac_security.dto.LoginRequestDTO;
+import br.com.adbrascosmopolis.saac_security.dto.LoginResponseDTO;
+import br.com.adbrascosmopolis.saac_security.model.Usuario;
+import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
+import br.com.adbrascosmopolis.saac_security.security.JwtService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
+    private final UsuarioRepository usuarioRepository;
+
+    public AuthController(AuthenticationManager authenticationManager,
+                           JwtService jwtService,
+                           UsuarioRepository usuarioRepository) {
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+        this.usuarioRepository = usuarioRepository;
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getSenha())
+            );
+        } catch (BadCredentialsException ex) {
+            throw new BadCredentialsException("E-mail ou senha inválidos");
+        }
+
+        Usuario usuario = usuarioRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("E-mail ou senha inválidos"));
+
+        String token = jwtService.gerarToken(
+                usuario.getEmail(),
+                usuario.getId(),
+                usuario.getScopeType().name(),
+                usuario.getUnidadeId()
+        );
+
+        return ResponseEntity.ok(new LoginResponseDTO(token));
+    }
+}
+⚠️ Pendências antes de testar
+Gere a chave JWT com openssl rand -base64 32 e coloque em jwt.secret (não deixe placeholder).
+Confirma que seu Usuario tem o campo scopeType do tipo enum (ScopeType), igual usamos no exemplo anterior — pelos dados que você colou, a coluna no banco se chama escopo, então verifique se o mapeamento @Column(name = "escopo") está correto na entidade.
+Depois de rodar, teste com Postman/Insomnia:
+http
+
+
+POST http://localhost:8083/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@adbrascosmopolis.com.br",
+  "senha": "SuaSenhaForteAqui123!"
+}
+Deve retornar um JSON com o token. Testa aí e me manda o resultado (sucesso ou erro) que seguimos ajustando! 🚀
