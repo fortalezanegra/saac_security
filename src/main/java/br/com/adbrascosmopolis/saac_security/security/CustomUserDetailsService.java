@@ -1,8 +1,7 @@
 package br.com.adbrascosmopolis.saac_security.security;
 
-import br.com.adbrascosmopolis.saac_security.models.Usuario;
+import br.com.adbrascosmopolis.saac_security.model.Usuario;
 import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -24,10 +23,17 @@ public class CustomUserDetailsService implements UserDetailsService {
         Usuario usuario = usuarioRepository.findByEmailAndDeletedAtIsNull(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
 
-        return new User(
+        if (!usuario.isAtivo()) {
+            throw new UsernameNotFoundException("Usuário inativo: " + email);
+        }
+
+        return new UsuarioAuthenticated(
+                usuario.getUsuarioId(),
                 usuario.getEmail(),
                 usuario.getSenha(),
+                usuario.getUnidadeId(),
                 Collections.singletonList(() -> "ROLE_" + usuario.getTipoEscopo().name())
         );
     }
+
 }

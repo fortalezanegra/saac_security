@@ -30,10 +30,27 @@ CREATE TABLE Usuario(
   deletedAt DATETIME DEFAULT NULL,
   modifiedBy BIGINT DEFAULT NULL,
 
-  CONSTRAINT uk_usuarios_email UNIQUE (email, deletedAt),
+  CONSTRAINT uk_usuarios_email UNIQUE (email),
   INDEX idx_usuarios_unidade (unidadeId)
 
 ) ENGINE=InnoDB;
+
+
+/*========================================================*/
+/*                   REFRESH TOKEN                        */
+/*========================================================*/
+CREATE TABLE RefreshToken (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    token VARCHAR(500) NOT NULL UNIQUE,
+    userId BIGINT NOT NULL,
+    expiresOn DATETIME NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_refreshtoken_usuario FOREIGN KEY (userId) REFERENCES Usuario(usuarioId)
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
+
 
 
 

@@ -1,4 +1,4 @@
-package br.com.adbrascosmopolis.saac_security.models;
+package br.com.adbrascosmopolis.saac_security.model;
 
 import br.com.adbrascosmopolis.saac_security.enumeration.TipoEscopo;
 import jakarta.persistence.*;
