@@ -39,3 +39,6 @@ build/
 GerarHash.java
 src/main/java/br/com/adbrascosmopolis/saac_security/model/GerarHash.java
 
+GerarJwtSecret
+src/main/java/br/com/adbrascosmopolis/saac_security/model/GerarJwtSecret.java
+
