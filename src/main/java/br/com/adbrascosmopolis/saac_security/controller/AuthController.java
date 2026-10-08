@@ -6,8 +6,8 @@ import br.com.adbrascosmopolis.saac_security.dto.refresh_token.RefreshTokenReque
 import br.com.adbrascosmopolis.saac_security.dto.refresh_token.TokenResponseDTO;
 import br.com.adbrascosmopolis.saac_security.exception.TokenRefreshException;
 import br.com.adbrascosmopolis.saac_security.model.RefreshToken;
-import br.com.adbrascosmopolis.saac_security.model.Usuario;
-import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
+import br.com.adbrascosmopolis.saac_security.model.User;
+import br.com.adbrascosmopolis.saac_security.repository.UserRepository;
 import br.com.adbrascosmopolis.saac_security.security.JwtService;
 import br.com.adbrascosmopolis.saac_security.service.RefreshTokenService;
 import jakarta.validation.Valid;
@@ -23,16 +23,16 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final UsuarioRepository usuarioRepository;
+    private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
-                          UsuarioRepository usuarioRepository,
+                          UserRepository userRepository,
                           RefreshTokenService refreshTokenService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
-        this.usuarioRepository = usuarioRepository;
+        this.userRepository = userRepository;
         this.refreshTokenService = refreshTokenService;
     }
 
@@ -46,46 +46,46 @@ public class AuthController {
             throw new BadCredentialsException("E-mail ou senha inválidos");
         }
 
-        Usuario usuario = usuarioRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
+        User user = userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("E-mail ou senha inválidos"));
 
         String accessToken = jwtService.tokenGenerate(
-                usuario.getEmail(),
-                usuario.getUsuarioId(),
-                usuario.getTipoEscopo().name(),
-                usuario.getUnidadeId()
+                user.getEmail(),
+                user.getUserId(),
+                user.getScopeType().name(),
+                user.getUnityId()
         );
 
         // Gera (e rotaciona, se já existir) o refresh token do usuário
-        RefreshToken refreshToken = refreshTokenService.criar(usuario.getUsuarioId());
+        RefreshToken refreshToken = refreshTokenService.create(user.getUserId());
 
         return ResponseEntity.ok(new LoginResponseDTO(accessToken, refreshToken.getToken(), "Bearer"));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequestDTO request) {
-        RefreshToken storedToken = refreshTokenService.validarRefreshToken(request.refreshToken());
+        RefreshToken storedToken = refreshTokenService.validateRefreshToken(request.refreshToken());
 
-        Usuario usuario = usuarioRepository.findById(storedToken.getUserId())
+        User user = userRepository.findById(storedToken.getUserId())
                 .orElseThrow(() -> new TokenRefreshException("Usuário não encontrado."));
 
-        String novoAccessToken = jwtService.tokenGenerate(
-                usuario.getEmail(),
-                usuario.getUsuarioId(),
-                usuario.getTipoEscopo().name(),
-                usuario.getUnidadeId()
+        String newAccessToken = jwtService.tokenGenerate(
+                user.getEmail(),
+                user.getUserId(),
+                user.getScopeType().name(),
+                user.getUnityId()
         );
 
         // Rotação: revoga o token usado e emite um novo
-        RefreshToken novoRefreshToken = refreshTokenService.criar(usuario.getUsuarioId());
+        RefreshToken newRefreshToken = refreshTokenService.create(user.getUserId());
 
-        return ResponseEntity.ok(new TokenResponseDTO(novoAccessToken, novoRefreshToken.getToken()));
+        return ResponseEntity.ok(new TokenResponseDTO(newAccessToken, newRefreshToken.getToken()));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequestDTO request) {
-        RefreshToken storedToken = refreshTokenService.validarRefreshToken(request.refreshToken());
-        refreshTokenService.revogarTodosDoUsuario(storedToken.getUserId());
+        RefreshToken storedToken = refreshTokenService.validateRefreshToken(request.refreshToken());
+        refreshTokenService.revokeAllByUser(storedToken.getUserId());
         return ResponseEntity.noContent().build();
     }
 

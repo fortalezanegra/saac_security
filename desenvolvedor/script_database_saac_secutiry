@@ -15,23 +15,23 @@ CREATE DATABASE IF NOT EXISTS saac_security
 USE saac_security;
 
 /*========================================================*/
-/*                    TABELA USUARIO                     */
+/*                      TABELA USER                       */
 /*========================================================*/
-CREATE TABLE Usuario(
-  usuarioId BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nome VARCHAR(150) NOT NULL,
+CREATE TABLE User(
+  userId BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL,
-  senha VARCHAR(255) NOT NULL,
-  ativo BOOLEAN NOT NULL DEFAULT TRUE,
-  unidadeId BIGINT NOT NULL,
-  tipoEscopo ENUM('LOCAL', 'GLOBAL') NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  unityId BIGINT NOT NULL,
+  scopeType ENUM('LOCAL', 'GLOBAL') NOT NULL,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deletedAt DATETIME DEFAULT NULL,
   modifiedBy BIGINT DEFAULT NULL,
 
-  CONSTRAINT uk_usuarios_email UNIQUE (email),
-  INDEX idx_usuarios_unidade (unidadeId)
+  CONSTRAINT uk_users_emails UNIQUE (email),
+  INDEX idx_usuarios_unidade (unityId)
 
 ) ENGINE=InnoDB;
 
@@ -46,7 +46,8 @@ CREATE TABLE RefreshToken (
     expiresOn DATETIME NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT FALSE,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_refreshtoken_usuario FOREIGN KEY (userId) REFERENCES Usuario(usuarioId)
+    deletedAt DATETIME DEFAULT NULL,
+    CONSTRAINT fk_refreshtoken_user FOREIGN KEY (userId) REFERENCES User(userId)
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
@@ -58,5 +59,5 @@ CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
 /*             USUARIO ADMINISTRADOR TESTE                */
 /*========================================================*/
 
-INSERT INTO Usuario (nome, email, senha, ativo, unidadeId, tipoEscopo, createdAt)
+INSERT INTO User (name, email, password, active, unityId, scopeType, createdAt)
 VALUES ('Administrador Master', 'admin@adbrascosmopolis.com.br', '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO', TRUE, 1, 'GLOBAL', NOW());

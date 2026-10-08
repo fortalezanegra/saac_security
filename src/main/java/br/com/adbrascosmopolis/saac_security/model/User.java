@@ -1,6 +1,6 @@
 package br.com.adbrascosmopolis.saac_security.model;
 
-import br.com.adbrascosmopolis.saac_security.enumeration.TipoEscopo;
+import br.com.adbrascosmopolis.saac_security.enumeration.ScopeType;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -8,32 +8,32 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Usuario")
-public class Usuario {
+@Table(name = "User")
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long usuarioId;
+    private Long userId;
 
     @Column(nullable = false, length = 150)
-    private String nome;
+    private String name;
 
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
     @Column(nullable = false)
-    private String senha; // hash BCrypt
+    private String password; // hash BCrypt
 
     @Column(nullable = false)
-    private boolean ativo = true;
+    private boolean active = true;
 
     // 👇 Apenas o ID da unidade organizacional (matriz OU filial)
-    @Column(name = "unidadeId", nullable = false)
-    private Long unidadeId;
+    @Column(name = "unityId", nullable = false)
+    private Long unityId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipoEscopo", nullable = false, length = 20)
-    private TipoEscopo tipoEscopo; // GLOBAL ou LOCAL
+    @Column(name = "scopeType", nullable = false, length = 20)
+    private ScopeType scopeType; // GLOBAL ou LOCAL
 
     @CreationTimestamp
     @Column(name = "createdAt", updatable = false)
@@ -49,36 +49,36 @@ public class Usuario {
     @Column(name = "modifiedBy")
     private Long modifiedBy;
 
-    public Usuario(){}
+    public User(){}
 
-    public Usuario(
-            String nome,
+    public User(
+            String name,
             String email,
-            String senha,
-            Long unidadeId,
-            TipoEscopo tipoEscopo
+            String password,
+            Long unityId,
+            ScopeType scopeType
     ){
-        this.nome = nome;
+        this.name = name;
         this.email = email;
-        this.senha = senha;
-        this.unidadeId = unidadeId;
-        this.tipoEscopo = tipoEscopo;
+        this.password = password;
+        this.unityId = unityId;
+        this.scopeType = scopeType ;
     }
 
-    public Long getUsuarioId() {
-        return usuarioId;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setUsuarioId(Long usuarioId) {
-        this.usuarioId = usuarioId;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
-    public String getNome() {
-        return nome;
+    public String getName() {
+        return name;
     }
 
-    public void setNome(String nome) {
-        this.nome = nome;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getEmail() {
@@ -89,36 +89,36 @@ public class Usuario {
         this.email = email;
     }
 
-    public String getSenha() {
-        return senha;
+    public String getPassword() {
+        return password;
     }
 
-    public void setSenha(String senha) {
-        this.senha = senha;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    public boolean isAtivo() {
-        return ativo;
+    public boolean isActive() {
+        return active;
     }
 
-    public void setAtivo(boolean ativo) {
-        this.ativo = ativo;
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
-    public Long getUnidadeId() {
-        return unidadeId;
+    public Long getUnityId() {
+        return unityId;
     }
 
-    public void setUnidadeId(Long unidadeId) {
-        this.unidadeId = unidadeId;
+    public void setUnityId(Long unityId) {
+        this.unityId = unityId;
     }
 
-    public TipoEscopo getTipoEscopo() {
-        return tipoEscopo;
+    public ScopeType getScopeType() {
+        return scopeType;
     }
 
-    public void setTipoEscopo(TipoEscopo tipoEscopo) {
-        this.tipoEscopo = tipoEscopo;
+    public void setScopeType(ScopeType scopeType) {
+        this.scopeType = scopeType;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -25,7 +25,7 @@ public class RefreshTokenService {
      * Gera e persiste um novo refresh token para o usuário.
      * Revoga tokens anteriores ativos (rotação de token).
      */
-    public RefreshToken criar(Long userId) {
+    public RefreshToken create(Long userId) {
         repository.revokeAllByUserId(userId); // garante um único token válido por usuário
 
         RefreshToken refreshToken = new RefreshToken(
@@ -41,7 +41,7 @@ public class RefreshTokenService {
      * Valida se o token existe, não está revogado e não expirou.
      * Lança TokenRefreshException se inválido ou expirado.
      */
-    public RefreshToken validarRefreshToken(String token) {
+    public RefreshToken validateRefreshToken(String token) {
         RefreshToken refreshToken = repository.findByTokenAndRevokedFalse(token)
                 .orElseThrow(() -> new TokenRefreshException("Refresh token inválido ou revogado."));
 
@@ -52,7 +52,7 @@ public class RefreshTokenService {
         return refreshToken;
     }
 
-    public void revogarTodosDoUsuario(Long userId) {
+    public void revokeAllByUser(Long userId) {
         repository.revokeAllByUserId(userId);
     }
 }

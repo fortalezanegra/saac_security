@@ -2,7 +2,6 @@ package br.com.adbrascosmopolis.saac_security.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,71 +17,52 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value(("${jwt.expiration-ms}"))
+    @Value("${jwt.expiration-ms}")
     private long expirationMs;
 
-    private SecretKey getSignKey(){
+    private SecretKey getSignKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String tokenGenerate(
-            String email,
-            Long usuarioId,
-            String tipoEscopo,
-            Long unidadeId
-    ){
+    public String tokenGenerate(String email, Long userId, String scopeType, Long unityId) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(email)
-                .claim("usuarioId", usuarioId)
-                .claim("tipoEscopo", tipoEscopo)
-                .claim("unidadeId", unidadeId)
+                .claim("userId", userId)
+                .claim("scopeType", scopeType)
+                .claim("unityId", unityId)
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(getSignKey())
                 .compact();
     }
 
-    public String extractEmail(String token){
+    public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean validToken(String token, String email){
+    public boolean validToken(String token, String email) {
         String emailDoToken = extractEmail(token);
         return emailDoToken.equals(email) && !expiredToken(token);
     }
 
-    private boolean expiredToken(String token){
+    private boolean expiredToken(String token) {
         return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> resolver){
+    private <T> T extractClaim(String token, Function<Claims, T> resolver) {
         Claims claims = extractAllClaims(token);
         return resolver.apply(claims);
     }
 
-    private Claims extractAllClaims(String token){
+    private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
-
-    // Adicione estas constantes/métodos à classe existente
-
-    private static final long REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000L; // 7 dias
-
-    public String generateRefreshToken(String email) {
-        return Jwts.builder()
-                .setSubject(email)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION))
-                .signWith(getSignKey(), SignatureAlgorithm.HS256)
-                .compact();
-    }
-
 }

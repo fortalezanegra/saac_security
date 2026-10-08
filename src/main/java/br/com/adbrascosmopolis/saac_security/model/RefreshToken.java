@@ -24,8 +24,11 @@ public class RefreshToken {
     private boolean revoked = false;
 
     @Column(name = "createdAt", nullable = false, updatable = false,
-            insertable = false) // preenchido pelo DEFAULT CURRENT_TIMESTAMP do banco
+            insertable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "deletedAt")
+    private LocalDateTime deletedAt;
 
     public RefreshToken() {}
 
@@ -50,6 +53,9 @@ public class RefreshToken {
     public void setRevoked(boolean revoked) { this.revoked = revoked; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresOn);

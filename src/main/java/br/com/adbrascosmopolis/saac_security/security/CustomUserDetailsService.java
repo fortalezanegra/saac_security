@@ -1,7 +1,7 @@
 package br.com.adbrascosmopolis.saac_security.security;
 
-import br.com.adbrascosmopolis.saac_security.model.Usuario;
-import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
+import br.com.adbrascosmopolis.saac_security.model.User;
+import br.com.adbrascosmopolis.saac_security.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -12,27 +12,27 @@ import java.util.Collections;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UsuarioRepository usuarioRepository;
+    private final UserRepository userRepository;
 
-    public CustomUserDetailsService(UsuarioRepository usuarioRepository) {
-        this.usuarioRepository = usuarioRepository;
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Usuario usuario = usuarioRepository.findByEmailAndDeletedAtIsNull(email)
+        User user = userRepository.findByEmailAndDeletedAtIsNull(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
 
-        if (!usuario.isAtivo()) {
+        if (!user.isActive()) {
             throw new UsernameNotFoundException("Usuário inativo: " + email);
         }
 
-        return new UsuarioAuthenticated(
-                usuario.getUsuarioId(),
-                usuario.getEmail(),
-                usuario.getSenha(),
-                usuario.getUnidadeId(),
-                Collections.singletonList(() -> "ROLE_" + usuario.getTipoEscopo().name())
+        return new UserAuthenticated(
+                user.getUserId(),
+                user.getEmail(),
+                user.getPassword(),
+                user.getUnityId(),
+                Collections.singletonList(() -> "ROLE_" + user.getScopeType().name())
         );
     }
 

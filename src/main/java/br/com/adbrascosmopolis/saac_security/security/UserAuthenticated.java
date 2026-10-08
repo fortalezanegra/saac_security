@@ -5,31 +5,31 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 
-public class UsuarioAuthenticated implements UserDetails {
+public class UserAuthenticated implements UserDetails {
 
-    private final Long usuarioId;
+    private final Long userId;
     private final String email;
-    private final String senha;
-    private final Long unidadeId;
+    private final String password;
+    private final Long unityId;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UsuarioAuthenticated(Long usuarioId, String email, String senha, Long unidadeId,
-                                Collection<? extends GrantedAuthority> authorities) {
-        this.usuarioId = usuarioId;
+    public UserAuthenticated(Long userId, String email, String password, Long unityId,
+                             Collection<? extends GrantedAuthority> authorities) {
+        this.userId = userId;
         this.email = email;
-        this.senha = senha;
-        this.unidadeId = unidadeId;
+        this.password = password;
+        this.unityId = unityId;
         this.authorities = authorities;
     }
 
-    public Long getUsuarioId() { return usuarioId; }
-    public Long getUnidadeId() { return unidadeId; }
+    public Long getUserId() { return userId; }
+    public Long getUnityId() { return unityId; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
 
     @Override
-    public String getPassword() { return senha; }
+    public String getPassword() { return password; }
 
     @Override
     public String getUsername() { return email; }

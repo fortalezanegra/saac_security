@@ -108,7 +108,7 @@ java
 
 package br.com.adbrascosmopolis.saac_security.security;
 
-import br.com.adbrascosmopolis.saac_security.model.Usuario;
+import br.com.adbrascosmopolis.saac_security.model.User;
 import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -320,7 +320,7 @@ package br.com.adbrascosmopolis.saac_security.controller;
 
 import br.com.adbrascosmopolis.saac_security.dto.LoginRequestDTO;
 import br.com.adbrascosmopolis.saac_security.dto.LoginResponseDTO;
-import br.com.adbrascosmopolis.saac_security.model.Usuario;
+import br.com.adbrascosmopolis.saac_security.model.User;
 import br.com.adbrascosmopolis.saac_security.repository.UsuarioRepository;
 import br.com.adbrascosmopolis.saac_security.security.JwtService;
 import jakarta.validation.Valid;
