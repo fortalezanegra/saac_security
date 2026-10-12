@@ -8,23 +8,35 @@ DROP DATABASE IF EXISTS saac_security;
 
 /* Criando Banco de Dados */
 CREATE DATABASE IF NOT EXISTS saac_security
-  DEFAULT CHARACTER SET utf8mb4 
+  DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 /* Selecionando Banco */
 USE saac_security;
 
 /*========================================================*/
-/*                      TABELA USER                       */
+/*                      TABLE USER                        */
 /*========================================================*/
-CREATE TABLE User(
+-- unityId referencia a unidade do módulo SECRETARIA (banco/serviço externo).
+-- Sem FK física aqui pois não há acesso direto ao schema da secretaria.
+-- Integridade garantida pela aplicação (validação via API/serviço da secretaria).
+CREATE TABLE EntityUser(
   userId BIGINT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL,
   password VARCHAR(255) NOT NULL,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   unityId BIGINT NOT NULL,
-  scopeType ENUM('LOCAL', 'GLOBAL') NOT NULL,
+
+  -- Controle de conta (UserDetails do Spring Security)
+  accountNonExpired BOOLEAN NOT NULL DEFAULT TRUE,
+  accountNonLocked BOOLEAN NOT NULL DEFAULT TRUE,
+  credentialsNonExpired BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Proteção contra brute-force
+  failedLoginAttempts INT NOT NULL DEFAULT 0,
+  lockedUntil DATETIME DEFAULT NULL,
+
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deletedAt DATETIME DEFAULT NULL,
@@ -33,11 +45,77 @@ CREATE TABLE User(
   CONSTRAINT uk_users_emails UNIQUE (email),
   INDEX idx_usuarios_unidade (unityId)
 
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+/* Tabela EntityUser substitui a antiga "User" (palavra reservada no MySQL) */
 
 /*========================================================*/
-/*                   REFRESH TOKEN                        */
+/*                  TABLE PERMISSION                      */
+/*========================================================*/
+-- code deve seguir convenção Spring Security: ROLE_* para papéis, PERMISSION_* para permissões granulares
+-- ex: ROLE_ADMIN, PERMISSION_USER_CREATE, PERMISSION_USER_DELETE
+CREATE TABLE Permission (
+    permissionId INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    description VARCHAR(255),
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*========================================================*/
+/*                  TABLE ENTITY GROUP                    */
+/*  (nome escolhido para evitar palavras reservadas do     */
+/*   MySQL: GROUP, GROUPS, GROUPING são todas reservadas)  */
+/*========================================================*/
+CREATE TABLE EntityGroup (
+    groupId INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*========================================================*/
+/*                 TABLE GROUP PERMISSION                 */
+/*========================================================*/
+CREATE TABLE GroupPermission (
+    groupId INT NOT NULL,
+    permissionId INT NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (groupId, permissionId),
+    FOREIGN KEY (groupId) REFERENCES EntityGroup(groupId),
+    FOREIGN KEY (permissionId) REFERENCES Permission(permissionId),
+    INDEX idx_group_permission_permission (permissionId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*========================================================*/
+/*                 TABLE GROUP SUBGROUP                   */
+/*========================================================*/
+CREATE TABLE GroupSubgroup (
+    parentGroupId INT NOT NULL,
+    childGroupId INT NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (parentGroupId, childGroupId),
+    FOREIGN KEY (parentGroupId) REFERENCES EntityGroup(groupId),
+    FOREIGN KEY (childGroupId) REFERENCES EntityGroup(groupId),
+    CONSTRAINT chk_group_subgroup_no_self CHECK (parentGroupId <> childGroupId),
+    INDEX idx_group_subgroup_child (childGroupId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*========================================================*/
+/*                      TABLE USER GROUP                  */
+/*========================================================*/
+CREATE TABLE UserGroup (
+    userId BIGINT NOT NULL,
+    groupId INT NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (userId, groupId),
+    FOREIGN KEY (userId) REFERENCES EntityUser(userId),
+    FOREIGN KEY (groupId) REFERENCES EntityGroup(groupId),
+    INDEX idx_user_group_group (groupId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*========================================================*/
+/*               TABLE REFRESH TOKEN                      */
 /*========================================================*/
 CREATE TABLE RefreshToken (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -47,8 +125,8 @@ CREATE TABLE RefreshToken (
     revoked BOOLEAN NOT NULL DEFAULT FALSE,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME DEFAULT NULL,
-    CONSTRAINT fk_refreshtoken_user FOREIGN KEY (userId) REFERENCES User(userId)
-) ENGINE=InnoDB;
+    CONSTRAINT fk_refreshtoken_user FOREIGN KEY (userId) REFERENCES EntityUser(userId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
 
@@ -59,5 +137,21 @@ CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
 /*             USUARIO ADMINISTRADOR TESTE                */
 /*========================================================*/
 
-INSERT INTO User (name, email, password, active, unityId, scopeType, createdAt)
-VALUES ('Administrador Master', 'admin@adbrascosmopolis.com.br', '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO', TRUE, 1, 'GLOBAL', NOW());
+INSERT INTO EntityUser (name, email, password, active, unityId, createdAt)
+VALUES ('Administrador', 'admin@adbrascosmopolis.com.br', '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO', TRUE, 1, NOW());
+
+INSERT INTO Permission (code, description) VALUES ('ROLE_GLOBAL', 'Administrador global do sistema');
+
+INSERT INTO EntityGroup (name) VALUES ('Administradores');
+
+INSERT INTO GroupPermission (groupId, permissionId)
+VALUES (
+    (SELECT groupId FROM EntityGroup WHERE name = 'Administradores'),
+    (SELECT permissionId FROM Permission WHERE code = 'ROLE_GLOBAL')
+);
+
+INSERT INTO UserGroup (userId, groupId)
+VALUES (
+    (SELECT userId FROM EntityUser WHERE email = 'admin@adbrascosmopolis.com.br'),
+    (SELECT groupId FROM EntityGroup WHERE name = 'Administradores')
+);

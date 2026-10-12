@@ -5,8 +5,8 @@ import br.com.adbrascosmopolis.saac_security.dto.login.LoginResponseDTO;
 import br.com.adbrascosmopolis.saac_security.dto.refresh_token.RefreshTokenRequestDTO;
 import br.com.adbrascosmopolis.saac_security.dto.refresh_token.TokenResponseDTO;
 import br.com.adbrascosmopolis.saac_security.exception.TokenRefreshException;
-import br.com.adbrascosmopolis.saac_security.model.RefreshToken;
 import br.com.adbrascosmopolis.saac_security.model.User;
+import br.com.adbrascosmopolis.saac_security.model.RefreshToken;
 import br.com.adbrascosmopolis.saac_security.repository.UserRepository;
 import br.com.adbrascosmopolis.saac_security.security.JwtService;
 import br.com.adbrascosmopolis.saac_security.service.RefreshTokenService;
@@ -52,7 +52,6 @@ public class AuthController {
         String accessToken = jwtService.tokenGenerate(
                 user.getEmail(),
                 user.getUserId(),
-                user.getScopeType().name(),
                 user.getUnityId()
         );
 
@@ -72,7 +71,6 @@ public class AuthController {
         String newAccessToken = jwtService.tokenGenerate(
                 user.getEmail(),
                 user.getUserId(),
-                user.getScopeType().name(),
                 user.getUnityId()
         );
 

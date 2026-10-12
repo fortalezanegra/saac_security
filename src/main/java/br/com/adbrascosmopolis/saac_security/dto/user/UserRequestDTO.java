@@ -1,6 +1,5 @@
 package br.com.adbrascosmopolis.saac_security.dto.user;
 
-import br.com.adbrascosmopolis.saac_security.enumeration.ScopeType;
 import jakarta.validation.constraints.*;
 
 public class UserRequestDTO {
@@ -21,49 +20,15 @@ public class UserRequestDTO {
     @NotNull(message = "A unidade é obrigatória")
     private Long unityId;
 
-    @NotNull(message = "O tipo de escopo é obrigatório")
-    private ScopeType scopeType;
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    // Getters e Setters
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public Long getUnityId() {
-        return unityId;
-    }
-
-    public void setUnityId(Long unityId) {
-        this.unityId = unityId;
-    }
-
-    public ScopeType getScopeType() {
-        return scopeType;
-    }
-
-    public void setScopeType(ScopeType scopeType) {
-        this.scopeType = scopeType;
-    }
+    public Long getUnityId() { return unityId; }
+    public void setUnityId(Long unityId) { this.unityId = unityId; }
 }

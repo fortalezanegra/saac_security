@@ -25,14 +25,15 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String tokenGenerate(String email, Long userId, String scopeType, Long unityId) {
+    // scopeType removido: authorities (ROLE_*/PERMISSION_*) são resolvidas
+    // dinamicamente a cada request via CustomUserDetailsService, não via claim do token.
+    public String tokenGenerate(String email, Long userId, Long unityId) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(email)
                 .claim("userId", userId)
-                .claim("scopeType", scopeType)
                 .claim("unityId", unityId)
                 .issuedAt(now)
                 .expiration(expiration)

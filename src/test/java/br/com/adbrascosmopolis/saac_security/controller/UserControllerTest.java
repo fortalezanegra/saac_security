@@ -4,7 +4,6 @@ import br.com.adbrascosmopolis.saac_security.dto.user.ChangePasswordDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserRequestDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserResponseDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserUpdateDTO;
-import br.com.adbrascosmopolis.saac_security.enumeration.ScopeType;
 import br.com.adbrascosmopolis.saac_security.exception.*;
 import br.com.adbrascosmopolis.saac_security.security.UserAuthenticated;
 import br.com.adbrascosmopolis.saac_security.service.UserService;
@@ -32,15 +31,15 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-
-
-
-
-
 /**
  * Observação: usamos authentication(...) com um Authentication cujo principal é
  * UserAuthenticated, pois o controller faz cast direto para essa classe.
  * O @PreAuthorize exige que as GrantedAuthorities estejam no Authentication mockado.
+ *
+ * ROLE_GLOBAL/ROLE_LOCAL e as PERMISSION_* não vêm mais de um campo fixo no User
+ * (scopeType foi removido): são resolvidas dinamicamente via grupos/permissions
+ * (UserPermissionRepository). Nos testes de controller isso é simulado diretamente
+ * nas authorities do principal mockado.
  */
 @WebMvcTest(UserController.class)
 class UserControllerTest {
@@ -59,7 +58,7 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         responseDTO = new UserResponseDTO(
-                1L, "João Silva", "joao@teste.com", true, 10L, ScopeType.LOCAL, LocalDateTime.now());
+                1L, "João Silva", "joao@teste.com", true, 10L, LocalDateTime.now());
     }
 
     private RequestPostProcessor asGlobal(Long userId, Long unityId) {
@@ -145,7 +144,6 @@ class UserControllerTest {
         dto.setEmail("joao@teste.com");
         dto.setPassword("senha12345");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         when(userService.create(any())).thenReturn(responseDTO);
 
@@ -164,7 +162,6 @@ class UserControllerTest {
         dto.setEmail("joao@teste.com");
         dto.setPassword("senha12345");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         mockMvc.perform(post("/api/users")
                         .with(asLocal(1L, 1L))
@@ -180,7 +177,6 @@ class UserControllerTest {
         dto.setEmail("email-invalido");
         dto.setPassword("senha12345");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         mockMvc.perform(post("/api/users")
                         .with(asGlobal(1L, 1L))
@@ -196,7 +192,6 @@ class UserControllerTest {
         dto.setEmail("joao@teste.com");
         dto.setPassword("senha12345");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         when(userService.create(any())).thenThrow(new EmailJaCadastradoException("Já existe um usuário ativo com este e-mail"));
 
@@ -214,7 +209,6 @@ class UserControllerTest {
         UserUpdateDTO dto = new UserUpdateDTO();
         dto.setName("João Atualizado");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         when(userService.update(eq(1L), any())).thenReturn(responseDTO);
 
@@ -230,7 +224,6 @@ class UserControllerTest {
         UserUpdateDTO dto = new UserUpdateDTO();
         dto.setName("João Atualizado");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         mockMvc.perform(put("/api/users/1")
                         .with(asLocal(1L, 1L))

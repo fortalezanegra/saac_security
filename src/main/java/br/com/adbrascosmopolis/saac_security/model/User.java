@@ -1,6 +1,5 @@
 package br.com.adbrascosmopolis.saac_security.model;
 
-import br.com.adbrascosmopolis.saac_security.enumeration.ScopeType;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -8,7 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "User")
+@Table(name = "EntityUser")
 public class User {
 
     @Id
@@ -27,13 +26,26 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
-    // 👇 Apenas o ID da unidade organizacional (matriz OU filial)
+    // 👇 Apenas o ID da unidade organizacional (matriz OU filial) - módulo Secretaria
     @Column(name = "unityId", nullable = false)
     private Long unityId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scopeType", nullable = false, length = 20)
-    private ScopeType scopeType; // GLOBAL ou LOCAL
+    // ===== Controle de conta (UserDetails do Spring Security) =====
+    @Column(name = "accountNonExpired", nullable = false)
+    private boolean accountNonExpired = true;
+
+    @Column(name = "accountNonLocked", nullable = false)
+    private boolean accountNonLocked = true;
+
+    @Column(name = "credentialsNonExpired", nullable = false)
+    private boolean credentialsNonExpired = true;
+
+    // ===== Proteção contra brute-force =====
+    @Column(name = "failedLoginAttempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "lockedUntil")
+    private LocalDateTime lockedUntil;
 
     @CreationTimestamp
     @Column(name = "createdAt", updatable = false)
@@ -55,14 +67,12 @@ public class User {
             String name,
             String email,
             String password,
-            Long unityId,
-            ScopeType scopeType
+            Long unityId
     ){
         this.name = name;
         this.email = email;
         this.password = password;
         this.unityId = unityId;
-        this.scopeType = scopeType ;
     }
 
     public Long getUserId() {
@@ -113,12 +123,44 @@ public class User {
         this.unityId = unityId;
     }
 
-    public ScopeType getScopeType() {
-        return scopeType;
+    public boolean isAccountNonExpired() {
+        return accountNonExpired;
     }
 
-    public void setScopeType(ScopeType scopeType) {
-        this.scopeType = scopeType;
+    public void setAccountNonExpired(boolean accountNonExpired) {
+        this.accountNonExpired = accountNonExpired;
+    }
+
+    public boolean isAccountNonLocked() {
+        return accountNonLocked;
+    }
+
+    public void setAccountNonLocked(boolean accountNonLocked) {
+        this.accountNonLocked = accountNonLocked;
+    }
+
+    public boolean isCredentialsNonExpired() {
+        return credentialsNonExpired;
+    }
+
+    public void setCredentialsNonExpired(boolean credentialsNonExpired) {
+        this.credentialsNonExpired = credentialsNonExpired;
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 
     public LocalDateTime getCreatedAt() {

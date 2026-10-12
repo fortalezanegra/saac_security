@@ -4,7 +4,6 @@ import br.com.adbrascosmopolis.saac_security.dto.user.ChangePasswordDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserRequestDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserResponseDTO;
 import br.com.adbrascosmopolis.saac_security.dto.user.UserUpdateDTO;
-import br.com.adbrascosmopolis.saac_security.enumeration.ScopeType;
 import br.com.adbrascosmopolis.saac_security.exception.EmailJaCadastradoException;
 import br.com.adbrascosmopolis.saac_security.exception.InvalidCredentialsException;
 import br.com.adbrascosmopolis.saac_security.exception.ResourceNotFoundException;
@@ -57,7 +56,6 @@ class UserServiceTest {
         user.setPassword("hashedPassword");
         user.setActive(true);
         user.setUnityId(10L);
-        user.setScopeType(ScopeType.LOCAL);
         user.setCreatedAt(LocalDateTime.now());
     }
 
@@ -70,7 +68,6 @@ class UserServiceTest {
         dto.setEmail("joao@teste.com");
         dto.setPassword("senha12345");
         dto.setUnityId(10L);
-        dto.setScopeType(ScopeType.LOCAL);
 
         when(userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(dto.getPassword())).thenReturn("hashedPassword");
@@ -171,7 +168,6 @@ class UserServiceTest {
         UserUpdateDTO dto = new UserUpdateDTO();
         dto.setName("João Atualizado");
         dto.setUnityId(20L);
-        dto.setScopeType(ScopeType.GLOBAL);
         dto.setActive(false);
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -181,7 +177,6 @@ class UserServiceTest {
 
         assertThat(result.getName()).isEqualTo("João Atualizado");
         assertThat(result.getUnityId()).isEqualTo(20L);
-        assertThat(result.getScopeType()).isEqualTo(ScopeType.GLOBAL);
         assertThat(result.isActive()).isFalse();
     }
 

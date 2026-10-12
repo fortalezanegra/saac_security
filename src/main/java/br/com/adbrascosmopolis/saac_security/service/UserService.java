@@ -30,25 +30,6 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional
-    public UserResponseDTO create(UserRequestDTO dto) {
-        userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
-                .ifPresent(u -> {
-                    throw new EmailJaCadastradoException("Já existe um usuário ativo com este e-mail");
-                });
-
-        User user = new User();
-        user.setName(dto.getName());
-        user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        user.setUnityId(dto.getUnityId());
-        user.setScopeType(dto.getScopeType());
-        user.setActive(true);
-
-        User salvo = userRepository.save(user);
-        return toResponseDTO(salvo);
-    }
-
     public List<UserResponseDTO> listAll() {
         return userRepository.findAllByDeletedAtIsNull()
                 .stream()
@@ -72,12 +53,29 @@ public class UserService {
     }
 
     @Transactional
+    public UserResponseDTO create(UserRequestDTO dto) {
+        userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
+                .ifPresent(u -> {
+                    throw new EmailJaCadastradoException("Já existe um usuário ativo com este e-mail");
+                });
+
+        User user = new User();
+        user.setName(dto.getName());
+        user.setEmail(dto.getEmail());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setUnityId(dto.getUnityId());
+        user.setActive(true);
+
+        User salvo = userRepository.save(user);
+        return toResponseDTO(salvo);
+    }
+
+    @Transactional
     public UserResponseDTO update(Long id, UserUpdateDTO dto) {
         User user = searchActiveOrFail(id);
 
         user.setName(dto.getName());
         user.setUnityId(dto.getUnityId());
-        user.setScopeType(dto.getScopeType());
 
         if (dto.getActive() != null) {
             user.setActive(dto.getActive());
@@ -150,7 +148,6 @@ public class UserService {
                 user.getEmail(),
                 user.isActive(),
                 user.getUnityId(),
-                user.getScopeType(),
                 user.getCreatedAt()
         );
     }
