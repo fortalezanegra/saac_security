@@ -2,32 +2,27 @@ package br.com.adbrascosmopolis.saac_security.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.function.Function;
 
 @Component
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final RsaKeyProvider rsaKeyProvider;
 
     @Value("${jwt.expiration-ms}")
     private long expirationMs;
 
-    private SecretKey getSignKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
+    public JwtService(RsaKeyProvider rsaKeyProvider) {
+        this.rsaKeyProvider = rsaKeyProvider;
     }
 
-    // scopeType removido: authorities (ROLE_*/PERMISSION_*) são resolvidas
-    // dinamicamente a cada request via CustomUserDetailsService, não via claim do token.
-    public String tokenGenerate(String email, Long userId, Long unityId) {
+    public String tokenGenerate(String email, Long userId, Long unityId, Collection<String> authorities) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMs);
 
@@ -35,14 +30,28 @@ public class JwtService {
                 .subject(email)
                 .claim("userId", userId)
                 .claim("unityId", unityId)
+                .claim("authorities", authorities)
                 .issuedAt(now)
                 .expiration(expiration)
-                .signWith(getSignKey())
+                .signWith(rsaKeyProvider.getPrivateKey(), Jwts.SIG.RS256)
                 .compact();
     }
 
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public Long extractUnityId(String token) {
+        return extractClaim(token, c -> c.get("unityId", Long.class));
+    }
+
+    public Long extractUserId(String token) {
+        return extractClaim(token, c -> c.get("userId", Long.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> extractAuthorities(String token) {
+        return extractClaim(token, c -> c.get("authorities", List.class));
     }
 
     public boolean validToken(String token, String email) {
@@ -61,7 +70,7 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSignKey())
+                .verifyWith(rsaKeyProvider.getPublicKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

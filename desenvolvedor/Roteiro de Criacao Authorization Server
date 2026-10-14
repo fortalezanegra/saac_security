@@ -384,3 +384,101 @@ Content-Type: application/json
   "senha": "SuaSenhaForteAqui123!"
 }
 Deve retornar um JSON com o token. Testa aí e me manda o resultado (sucesso ou erro) que seguimos ajustando! 🚀
+
+
+
+######################################
+### CRIACAO CHAVES RSA ASSIMETRICO ###
+######################################
+
+1. Gerando as chaves (passo a passo prático)
+Abra o terminal (Linux/Mac ou Git Bash no Windows) e execute, dentro da pasta do projeto saac_security:
+
+bash
+
+
+# Cria uma pasta pra guardar as chaves (fora do classpath versionado)
+mkdir -p keys
+
+# Gera a chave privada
+openssl genpkey -algorithm RSA -out keys/private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+# Extrai a chave pública a partir da privada
+openssl rsa -pubout -in keys/private_key.pem -out keys/public_key.pem
+Se não tiver openssl instalado (comum em Windows sem Git Bash), você pode gerar via Java puro com uma classe utilitária descartável — me avisa se for esse o seu caso e eu te passo o código.
+
+Resultado: dois arquivos de texto simples:
+
+keys/private_key.pem → começa com -----BEGIN PRIVATE KEY-----
+keys/public_key.pem → começa com -----BEGIN PUBLIC KEY-----
+2. Onde colocar esses arquivos (estrutura recomendada)
+Não colocar dentro de src/main/resources versionado. Sugestão de estrutura, na raiz do projeto (fora de src):
+
+
+
+saac_security/
+├── keys/
+│   ├── private_key.pem
+│   └── public_key.pem
+├── src/
+├── pom.xml
+└── .gitignore
+No application.properties, referencie o caminho absoluto/relativo fora do classpath:
+properties
+
+
+jwt.private-key-path=${JWT_PRIVATE_KEY_PATH:keys/private_key.pem}
+Isso aponta pro arquivo relativo à raiz onde a aplicação roda (não embutido no .jar). Em produção, você define a variável de ambiente JWT_PRIVATE_KEY_PATH apontando pro caminho real do servidor.
+
+Atenção: se você usar classpath:keys/private_key.pem, o Spring vai tentar ler de dentro do .jar compilado — e isso significa que a chave entraria no artefato empacotado, o que não é ideal. Prefira caminho de sistema de arquivos (fora do jar) para a chave privada.
+
+3. Distribuindo a chave pública pros Resource Servers
+Essa você pode colocar dentro do classpath normalmente (não é segredo):
+
+
+
+secretaria/
+└── src/main/resources/keys/public_key.pem
+properties
+
+
+jwt.public-key-path=classpath:keys/public_key.pem
+E essa pode (e deve) ser versionada no Git normalmente — não tem risco em expor a chave pública.
+
+4. .gitignore — o que proteger
+No saac_security (quem tem a chave privada), adicione no .gitignore:
+
+gitignore
+
+
+# Chaves JWT - NUNCA versionar a privada
+keys/private_key.pem
+
+# Opcional: ignorar a pasta toda e permitir só o que quiser manualmente
+# keys/
+# !keys/public_key.pem
+Se quiser ser mais rígido, ignore a pasta inteira e libere exceções:
+
+gitignore
+
+
+keys/*
+!keys/.gitkeep
+E crie um arquivo vazio keys/.gitkeep só pra manter a pasta no repositório (sem o conteúdo sensível), lembrando o time que ali vai algo que precisa ser gerado localmente ou obtido via secret manager.
+
+5. E se o arquivo já tiver sido commitado por engano?
+Se você já rodou git add . antes de configurar o .gitignore e a chave privada já está no histórico do Git, adicionar ao .gitignore agora não remove do histórico. Nesse caso:
+
+bash
+
+
+git rm --cached keys/private_key.pem
+git commit -m "remove chave privada do versionamento"
+E se já foi até um push pra um repositório remoto compartilhado (GitHub/GitLab), o ideal é gerar um novo par de chaves (a antiga deve ser considerada comprometida) — reescrever histórico do Git pra remover algo que já foi exposto é trabalhoso e arriscado em time, então trocar a chave é mais seguro e rápido.
+
+6. Em produção (quando chegar a hora)
+Pra não depender de "copiar arquivo manualmente pro servidor", as opções mais comuns:
+
+Variável de ambiente com o conteúdo da chave em Base64 (não o path) — útil em Docker/Kubernetes onde você injeta via secret
+Volume montado no container apontando pra um secret gerenciado pela plataforma (Docker Secrets, Kubernetes Secret, AWS Secrets Manager)
+Por enquanto, pra ambiente de desenvolvimento, a estrutura de pasta keys/ fora do classpath + .gitignore já resolve bem.

@@ -42,3 +42,9 @@ src/main/java/br/com/adbrascosmopolis/saac_security/model/GerarHash.java
 GerarJwtSecret.java
 src/main/java/br/com/adbrascosmopolis/saac_security/model/GerarJwtSecret.java
 
+# Chaves JWT - NUNCA versionar a privada
+keys/private_key.pem
+keys/public_key.pem
+
+# Opcional: ignorar a pasta toda e permitir só o que quiser manualmente
+keys/*
