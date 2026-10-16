@@ -15,7 +15,7 @@ CREATE DATABASE IF NOT EXISTS saac_security
 USE saac_security;
 
 /*========================================================*/
-/*                      TABLE USER                        */
+/*                   TABLE ENTITY USER                    */
 /*========================================================*/
 -- unityId referencia a unidade do módulo SECRETARIA (banco/serviço externo).
 -- Sem FK física aqui pois não há acesso direto ao schema da secretaria.
@@ -52,8 +52,10 @@ CREATE TABLE EntityUser(
 /*========================================================*/
 /*                  TABLE PERMISSION                      */
 /*========================================================*/
--- code deve seguir convenção Spring Security: ROLE_* para papéis, PERMISSION_* para permissões granulares
--- ex: ROLE_ADMIN, PERMISSION_USER_CREATE, PERMISSION_USER_DELETE
+-- code segue convenção: PERMISSION_<RECURSO>_<ACAO>
+-- O escopo efetivo (GLOBAL/LOCAL) vem do grupo ao qual o usuário está vinculado
+-- e é concatenado no Java ao montar as authorities do Spring Security.
+
 CREATE TABLE Permission (
     permissionId INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(100) NOT NULL UNIQUE,
@@ -70,6 +72,8 @@ CREATE TABLE Permission (
 CREATE TABLE EntityGroup (
     groupId INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    scopeType ENUM('GLOBAL', 'LOCAL') NOT NULL,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -87,19 +91,25 @@ CREATE TABLE GroupPermission (
     INDEX idx_group_permission_permission (permissionId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
 /*========================================================*/
 /*                 TABLE GROUP SUBGROUP                   */
 /*========================================================*/
+-- Relação de herança: um grupo PAI herda todas as permissões dos grupos FILHOS.
+-- Um filho só pode ter UM pai (floresta de árvores).
+
 CREATE TABLE GroupSubgroup (
     parentGroupId INT NOT NULL,
     childGroupId INT NOT NULL,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (parentGroupId, childGroupId),
+    UNIQUE INDEX idx_group_subgroup_unique_child (childGroupId),
     FOREIGN KEY (parentGroupId) REFERENCES EntityGroup(groupId),
     FOREIGN KEY (childGroupId) REFERENCES EntityGroup(groupId),
     CONSTRAINT chk_group_subgroup_no_self CHECK (parentGroupId <> childGroupId),
     INDEX idx_group_subgroup_child (childGroupId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 /*========================================================*/
 /*                      TABLE USER GROUP                  */
@@ -131,27 +141,3 @@ CREATE TABLE RefreshToken (
 CREATE INDEX idx_refresh_token_user ON RefreshToken(userId);
 
 
-
-
-/*========================================================*/
-/*             USUARIO ADMINISTRADOR TESTE                */
-/*========================================================*/
-
-INSERT INTO EntityUser (name, email, password, active, unityId, createdAt)
-VALUES ('Administrador', 'admin@adbrascosmopolis.com.br', '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO', TRUE, 1, NOW());
-
-INSERT INTO Permission (code, description) VALUES ('ROLE_GLOBAL', 'Administrador global do sistema');
-
-INSERT INTO EntityGroup (name) VALUES ('Administradores');
-
-INSERT INTO GroupPermission (groupId, permissionId)
-VALUES (
-    (SELECT groupId FROM EntityGroup WHERE name = 'Administradores'),
-    (SELECT permissionId FROM Permission WHERE code = 'ROLE_GLOBAL')
-);
-
-INSERT INTO UserGroup (userId, groupId)
-VALUES (
-    (SELECT userId FROM EntityUser WHERE email = 'admin@adbrascosmopolis.com.br'),
-    (SELECT groupId FROM EntityGroup WHERE name = 'Administradores')
-);

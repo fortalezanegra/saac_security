@@ -1,0 +1,241 @@
+/*####################################################################################################################
+#########################     S A A C   S E C U R I T Y - SEED DE PERMISSÕES E GRUPOS      #########################
+####################################################################################################################*/
+
+USE saac_security;
+
+-- ============================================================
+-- 1. PERMISSÕES DO MÓDULO SEGURANÇA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_USER_CREATE', 'Criar usuário'),
+('PERMISSION_USER_READ', 'Visualizar usuários'),
+('PERMISSION_USER_UPDATE', 'Editar usuário'),
+('PERMISSION_USER_DELETE', 'Excluir usuário'),
+('PERMISSION_USER_RESTORE', 'Restaurar usuário'),
+('PERMISSION_USER_PASSWORD', 'Alterar senha de usuário'),
+('PERMISSION_GROUP_CREATE', 'Criar grupo de acesso'),
+('PERMISSION_GROUP_READ', 'Visualizar grupos de acesso'),
+('PERMISSION_GROUP_UPDATE', 'Editar grupo de acesso'),
+('PERMISSION_GROUP_DELETE', 'Excluir grupo de acesso');
+
+-- ============================================================
+-- 2. PERMISSÕES DO MÓDULO SECRETARIA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_SECRETARIA_MEMBRO_CREATE', 'Cadastrar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_READ', 'Visualizar membros'),
+('PERMISSION_SECRETARIA_MEMBRO_UPDATE', 'Editar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_DELETE', 'Excluir membro'),
+('PERMISSION_SECRETARIA_MEMBRO_RESTORE', 'Restaurar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_REPORT', 'Relatórios de membro');
+
+-- ============================================================
+-- 3. PERMISSÕES DO MÓDULO TESOURARIA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_CREATE', 'Lançar movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_READ', 'Visualizar movimentações financeiras'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_UPDATE', 'Editar movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_DELETE', 'Excluir movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT', 'Visualizar relatórios financeiros');
+
+-- ============================================================
+-- 4. GRUPOS DE ACESSO
+-- ============================================================
+INSERT INTO EntityGroup (name, code, scopeType) VALUES
+('Super Administrador', 'SUPER_ADMIN', 'GLOBAL'),
+('Administrador do Sistema', 'ADMINISTRADOR', 'GLOBAL'),
+('Secretário', 'SECRETARIO', 'GLOBAL'),
+('Auxiliar Secretaria', 'AUXILIAR_SECRETARIA', 'LOCAL'),
+('Assistente Secretaria', 'ASSISTENTE_SECRETARIA', 'LOCAL'),
+('Relatórios Secretaria', 'RELATORIOS_SECRETARIA', 'LOCAL'),
+('Tesoureiro', 'TESOUREIRO', 'GLOBAL'),
+('Auxiliar Tesouraria', 'AUXILIAR_TESOURARIA', 'LOCAL'),
+('Assistente Financeiro', 'ASSISTENTE_FINANCEIRO', 'LOCAL'),
+('Auditor Financeiro', 'AUDITOR_FINANCEIRO', 'GLOBAL'),
+('Relatórios Tesouraria', 'RELATORIOS_TESOURARIA', 'LOCAL'),
+('Pastor Presidente', 'PASTOR_PRESIDENTE', 'GLOBAL'),
+('Membro', 'MEMBRO', 'LOCAL');
+
+-- ============================================================
+-- 5. VINCULAR PERMISSÕES AOS GRUPOS
+-- ============================================================
+
+-- 5.1 ADMINISTRADOR: tudo de segurança
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ADMINISTRADOR'
+  AND (
+      p.code LIKE 'PERMISSION_USER%'
+      OR p.code LIKE 'PERMISSION_GROUP%'
+  );
+
+-- 5.2 SECRETARIO: tudo de secretaria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'SECRETARIO'
+  AND p.code LIKE 'PERMISSION_SECRETARIA%';
+
+-- 5.3 AUXILIAR_SECRETARIA: leitura e relatórios de secretaria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'AUXILIAR_SECRETARIA'
+  AND p.code IN (
+      'PERMISSION_SECRETARIA_MEMBRO_READ',
+      'PERMISSION_SECRETARIA_MEMBRO_REPORT'
+  );
+
+-- 5.4 ASSISTENTE_SECRETARIA: criação e atualização de membros
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ASSISTENTE_SECRETARIA'
+  AND p.code IN (
+      'PERMISSION_SECRETARIA_MEMBRO_CREATE',
+      'PERMISSION_SECRETARIA_MEMBRO_UPDATE'
+  );
+
+-- 5.5 RELATORIOS_SECRETARIA: apenas relatórios de secretaria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'RELATORIOS_SECRETARIA'
+  AND p.code = 'PERMISSION_SECRETARIA_MEMBRO_REPORT';
+
+-- 5.6 TESOUREIRO: tudo de tesouraria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'TESOUREIRO'
+  AND p.code LIKE 'PERMISSION_TESOURARIA%';
+
+-- 5.7 AUXILIAR_TESOURARIA: leitura e relatórios de tesouraria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'AUXILIAR_TESOURARIA'
+  AND p.code IN (
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_READ',
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT'
+  );
+
+-- 5.8 ASSISTENTE_FINANCEIRO: criação, atualização e exclusão de movimentos
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ASSISTENTE_FINANCEIRO'
+  AND p.code IN (
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_CREATE',
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_UPDATE',
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_DELETE'
+  );
+
+-- 5.9 AUDITOR_FINANCEIRO: leitura e relatórios de tesouraria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'AUDITOR_FINANCEIRO'
+  AND p.code IN (
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_READ',
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT'
+  );
+
+-- 5.10 RELATORIOS_TESOURARIA: apenas relatórios de tesouraria
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'RELATORIOS_TESOURARIA'
+  AND p.code = 'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT';
+
+-- 5.11 PASTOR_PRESIDENTE: leitura de membros e relatórios financeiros
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'PASTOR_PRESIDENTE'
+  AND p.code IN (
+      'PERMISSION_SECRETARIA_MEMBRO_READ',
+      'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT'
+  );
+
+-- 5.12 MEMBRO: leitura do próprio perfil
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'MEMBRO'
+  AND p.code = 'PERMISSION_SECRETARIA_MEMBRO_READ';
+
+-- ============================================================
+-- 6. HERANÇA DE GRUPOS
+-- ============================================================
+-- SUPER_ADMIN herda permissões dos grupos globais
+INSERT INTO GroupSubgroup (parentGroupId, childGroupId) VALUES
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'ADMINISTRADOR')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'SECRETARIO')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'TESOUREIRO')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'PASTOR_PRESIDENTE')
+);
+
+-- ============================================================
+-- 7. USUÁRIO ADMINISTRADOR PADRÃO
+-- ============================================================
+INSERT IGNORE INTO EntityUser (
+    name,
+    email,
+    password,
+    active,
+    unityId,
+    accountNonExpired,
+    accountNonLocked,
+    credentialsNonExpired,
+    failedLoginAttempts,
+    lockedUntil
+) VALUES (
+    'Administrador do Sistema',
+    'admin@adbrascosmopolis.com.br',
+    '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO',
+    TRUE,
+    1,
+    TRUE,
+    TRUE,
+    TRUE,
+    0,
+    NULL
+);
+
+INSERT IGNORE INTO UserGroup (userId, groupId)
+SELECT u.userId, g.groupId
+FROM EntityUser u
+CROSS JOIN EntityGroup g
+WHERE u.email = 'admin@adbrascosmopolis.com.br'
+  AND g.code = 'ADMINISTRADOR';
+
+
+
+

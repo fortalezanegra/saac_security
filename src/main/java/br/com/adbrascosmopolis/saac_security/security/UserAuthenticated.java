@@ -23,6 +23,7 @@ public class UserAuthenticated implements UserDetails {
     }
 
     public Long getUserId() { return userId; }
+
     public Long getUnityId() { return unityId; }
 
     @Override

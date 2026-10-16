@@ -1,0 +1,233 @@
+/*####################################################################################################################
+#########################     S A A C   S E C U R I T Y - SEED DE PERMISSÕES E GRUPOS      #########################
+####################################################################################################################*/
+
+USE saac_security;
+
+-- ============================================================
+-- 1. PERMISSÕES DO MÓDULO SEGURANÇA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_USER_CREATE', 'Criar usuário'),
+('PERMISSION_USER_READ', 'Visualizar usuários'),
+('PERMISSION_USER_UPDATE', 'Editar usuário'),
+('PERMISSION_USER_DELETE', 'Excluir usuário'),
+('PERMISSION_USER_RESTORE', 'Restaurar usuário'),
+('PERMISSION_USER_PASSWORD', 'Alterar senha de usuário'),
+('PERMISSION_GROUP_CREATE', 'Criar grupo de acesso'),
+('PERMISSION_GROUP_READ', 'Visualizar grupos de acesso'),
+('PERMISSION_GROUP_UPDATE', 'Editar grupo de acesso'),
+('PERMISSION_GROUP_DELETE', 'Excluir grupo de acesso');
+
+-- ============================================================
+-- 1.2. PERMISSÕES DO MÓDULO SECRETARIA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_SECRETARIA_MEMBRO_CREATE', 'Cadastrar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_READ', 'Visualizar membros'),
+('PERMISSION_SECRETARIA_MEMBRO_UPDATE', 'Editar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_DELETE', 'Excluir membro'),
+('PERMISSION_SECRETARIA_MEMBRO_RESTORE', 'Restaurar membro'),
+('PERMISSION_SECRETARIA_MEMBRO_REPORT', 'Relatorios de membro');
+
+-- ============================================================
+-- 1.3. PERMISSÕES DO MÓDULO TESOURARIA
+-- ============================================================
+INSERT INTO Permission (code, description) VALUES
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_CREATE', 'Lançar movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_READ', 'Visualizar movimentações financeiras'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_UPDATE', 'Editar movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_DELETE', 'Excluir movimentação financeira'),
+('PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_REPORT', 'Visualizar relatórios financeiros');
+
+
+-- ============================================================
+-- 2. GRUPOS DE ACESSO
+-- ============================================================
+
+INSERT INTO EntityGroup (name, code, scopeType) VALUES
+('Super Administrador', 'SUPER_ADMIN', 'GLOBAL'),
+('Administrador do Sistema', 'ADMINISTRADOR', 'GLOBAL'),
+
+('Secretario', 'SECRETARIO', 'GLOBAL'),
+('Auxiliar Secretaria', 'AUXILIAR_SECRETARIA', 'LOCAL'),
+('Assistente Secretaria', 'ASSISTENTE_SECRETARIA', 'LOCAL'),
+('Relatorios Secretaria', 'RELATORIOS_SECRETARIA', 'LOCAL'),
+
+('Tesoureiro', 'TESOUREIRO', 'GLOBAL'),
+('Auxiliar Tesouraria', 'AUXILIAR_TESOURARIA', 'LOCAL'),
+('Assistente Financeiro', 'ASSISTENTE_FINANCEIRO', 'LOCAL'),
+('Auditor Financeiro', 'AUDITOR_FINANCEIRO', 'GLOBAL'),
+('Relatorios Tesouraria', 'RELATORIOS_TESOURARIA', 'LOCAL'),
+
+('Pastor Presidente', 'PASTOR_PRESIDENTE', 'GLOBAL'),
+('Membro', 'MEMBRO', 'LOCAL');
+
+
+-- ============================================================
+-- 3. VINCULAR PERMISSÕES AOS GRUPOS
+-- ============================================================
+
+-- SUPER_ADMIN: herda todos os grupos (não precisa de permissões diretas se usar herança)
+-- ADMINISTRADOR: tudo de segurança
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ADMINISTRADOR'
+  AND p.code LIKE 'PERMISSION_USER%'
+   OR p.code LIKE 'PERMISSION_GROUP%';
+
+
+
+-- ASSISTENTE SECRETARIA:
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ASSISTENTE_SECRETARIA'
+  AND p.code LIKE 'PERMISSION_SECRETARIA_MEMBRO_CREATE'
+   OR p.code LIKE 'PERMISSION_SECRETARIA_MEMBRO_UPDATE';
+
+
+-- ASSISTENTE FINANCEIRO:
+INSERT INTO GroupPermission (groupId, permissionId)
+SELECT g.groupId, p.permissionId
+FROM EntityGroup g
+CROSS JOIN Permission p
+WHERE g.code = 'ASSISTENTE_FINANCEIRO'
+  AND p.code LIKE 'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_CREATE'
+   OR p.code LIKE 'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_UPDATE'
+   OR p.code LIKE 'PERMISSION_TESOURARIA_MOVIMENTO_FINANCEIRO_DELETE';
+
+
+
+-- ============================================================
+-- 4. HERANÇA DE GRUPOS
+-- ============================================================
+-- SUPER_ADMIN herda permissões de todos os grupos globais
+INSERT INTO GroupSubgroup (parentGroupId, childGroupId) VALUES
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'ADMINISTRADOR')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'SECRETARIO')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'TESOUREIRO')
+),
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SUPER_ADMIN'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'PASTOR')
+);
+
+
+-- 5) Criar usuário administrador
+INSERT IGNORE INTO EntityUser (
+    name,
+    email,
+    password,
+    active,
+    unityId,
+    accountNonExpired,
+    accountNonLocked,
+    credentialsNonExpired,
+    failedLoginAttempts,
+    lockedUntil
+) VALUES (
+    'Administrador do Sistema',
+    'admin@adbrascosmopolis.com.br',
+    '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO',
+    TRUE,
+    1,
+    TRUE,
+    TRUE,
+    TRUE,
+    0,
+    NULL
+);
+
+-- 6) Vincular usuário ao grupo Administrador Global
+INSERT IGNORE INTO UserGroup (userId, groupId)
+SELECT u.userId, g.groupId
+FROM EntityUser u
+CROSS JOIN EntityGroup g
+WHERE u.email = 'admin@adbrascosmopolis.com.br'
+  AND g.code = 'ADMINISTRADOR';
+
+
+
+
+
+
+
+--   /*========================================================*/
+-- /*             USUARIO ADMINISTRADOR TESTE                */
+-- /*========================================================*/
+
+
+-- -- ============================================================
+-- -- SEED: Administrador Global
+-- -- ============================================================
+
+-- -- 1) Grupo Administrador Global
+-- INSERT IGNORE INTO EntityGroup (name, code, scopeType)
+-- VALUES ('Administrador Global', 'ADMINISTRADOR_GLOBAL', 'GLOBAL');
+
+-- -- 2) Permissões base do sistema (Secretaria + Tesouraria + Segurança)
+-- INSERT IGNORE INTO Permission (code, description) VALUES
+-- -- Segurança / Administração de usuários
+-- ('PERMISSION_USER_READ',      'Visualizar usuários'),
+-- ('PERMISSION_USER_CREATE',    'Criar usuários'),
+-- ('PERMISSION_USER_UPDATE',    'Atualizar usuários'),
+-- ('PERMISSION_USER_DELETE',    'Remover usuários'),
+-- ('PERMISSION_USER_RESTORE',   'Restaurar usuários'),
+-- ('PERMISSION_USER_PASSWORD',  'Alterar senha de usuários'),
+
+-- ('PERMISSION_GROUP_CREATE', 'Criar grupo de acesso'),
+-- ('PERMISSION_GROUP_READ', 'Visualizar grupos de acesso'),
+-- ('PERMISSION_GROUP_UPDATE', 'Editar grupo de acesso'),
+-- ('PERMISSION_GROUP_DELETE', 'Excluir grupo de acesso');
+
+-- -- 3) Vincular todas as permissões ao grupo Administrador Global
+-- INSERT IGNORE INTO GroupPermission (groupId, permissionId)
+-- SELECT g.groupId, p.permissionId
+-- FROM EntityGroup g
+-- CROSS JOIN Permission p
+-- WHERE g.code = 'ADMINISTRADOR_GLOBAL';
+
+-- -- 4) Criar usuário administrador
+-- INSERT IGNORE INTO EntityUser (
+--     name,
+--     email,
+--     password,
+--     active,
+--     unityId,
+--     accountNonExpired,
+--     accountNonLocked,
+--     credentialsNonExpired,
+--     failedLoginAttempts,
+--     lockedUntil
+-- ) VALUES (
+--     'Administrador do Sistema',
+--     'admin@adbrascosmopolis.com.br',
+--     '$2a$10$MOdNPITSwT7i0e3NZoyWSeYCy6E0ZEnGB8aIzbCzxCCuMkrtCSIAO',
+--     TRUE,
+--     1,
+--     TRUE,
+--     TRUE,
+--     TRUE,
+--     0,
+--     NULL
+-- );
+
+-- -- 5) Vincular usuário ao grupo Administrador Global
+-- INSERT IGNORE INTO UserGroup (userId, groupId)
+-- SELECT u.userId, g.groupId
+-- FROM EntityUser u
+-- CROSS JOIN EntityGroup g
+-- WHERE u.email = 'admin@adbrascosmopolis.com.br'
+--   AND g.code = 'ADMINISTRADOR';

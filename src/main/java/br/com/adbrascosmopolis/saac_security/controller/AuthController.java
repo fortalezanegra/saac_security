@@ -5,10 +5,11 @@ import br.com.adbrascosmopolis.saac_security.dto.login.LoginResponseDTO;
 import br.com.adbrascosmopolis.saac_security.dto.refresh_token.RefreshTokenRequestDTO;
 import br.com.adbrascosmopolis.saac_security.dto.refresh_token.TokenResponseDTO;
 import br.com.adbrascosmopolis.saac_security.exception.TokenRefreshException;
-import br.com.adbrascosmopolis.saac_security.model.User;
 import br.com.adbrascosmopolis.saac_security.model.RefreshToken;
+import br.com.adbrascosmopolis.saac_security.model.User;
 import br.com.adbrascosmopolis.saac_security.repository.UserPermissionRepository;
 import br.com.adbrascosmopolis.saac_security.repository.UserRepository;
+import br.com.adbrascosmopolis.saac_security.repository.projection.EffectivePermissionProjection;
 import br.com.adbrascosmopolis.saac_security.security.JwtService;
 import br.com.adbrascosmopolis.saac_security.service.RefreshTokenService;
 import jakarta.validation.Valid;
@@ -16,9 +17,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -55,8 +60,7 @@ public class AuthController {
         User user = userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("E-mail ou senha inválidos"));
 
-        List<String> authorities = userPermissionRepository
-                .findEffectivePermissionCodesByUserId(user.getUserId());
+        List<String> authorities = buildAuthorities(user.getUserId());
 
         String accessToken = jwtService.tokenGenerate(
                 user.getEmail(),
@@ -77,10 +81,7 @@ public class AuthController {
         User user = userRepository.findById(storedToken.getUserId())
                 .orElseThrow(() -> new TokenRefreshException("Usuário não encontrado."));
 
-        // Resolve de novo as permissões: garante que, se mudaram desde o login
-        // original, o novo access token já reflete o estado atual.
-        List<String> authorities = userPermissionRepository
-                .findEffectivePermissionCodesByUserId(user.getUserId());
+        List<String> authorities = buildAuthorities(user.getUserId());
 
         String newAccessToken = jwtService.tokenGenerate(
                 user.getEmail(),
@@ -99,5 +100,11 @@ public class AuthController {
         RefreshToken storedToken = refreshTokenService.validateRefreshToken(request.refreshToken());
         refreshTokenService.revokeAllByUser(storedToken.getUserId());
         return ResponseEntity.noContent().build();
+    }
+
+    private List<String> buildAuthorities(Long userId) {
+        return userPermissionRepository.findEffectivePermissions(userId).stream()
+                .map(p -> p.getCode() + "_" + p.getScope())
+                .collect(Collectors.toList());
     }
 }

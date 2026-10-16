@@ -1,59 +1,51 @@
 package br.com.adbrascosmopolis.saac_security.repository;
 
-import br.com.adbrascosmopolis.saac_security.model.Permission;
+import br.com.adbrascosmopolis.saac_security.model.User;
+import br.com.adbrascosmopolis.saac_security.repository.projection.EffectivePermissionProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-public interface UserPermissionRepository extends JpaRepository<Permission, Integer> {
+@Repository
+public interface UserPermissionRepository extends JpaRepository<User, Long> {
 
-    /**
-     * Retorna todas as Permissions efetivas de um usuário.
-     *
-     * Herança: usuário no Grupo A (pai) herda as permissions diretas de A
-     * + permissions de TODOS os descendentes (subgrupos, sub-subgrupos, etc.)
-     */
     @Query(value = """
         WITH RECURSIVE GroupHierarchy AS (
-            SELECT ug.groupId AS groupId
+            SELECT
+                ug.groupId AS group_id,
+                eg.scopeType AS root_scope
             FROM UserGroup ug
+            INNER JOIN EntityGroup eg ON eg.groupId = ug.groupId
             WHERE ug.userId = :userId
 
-            UNION
+            UNION ALL
 
-            SELECT gs.childGroupId AS groupId
+            SELECT
+                gs.childGroupId AS group_id,
+                gh.root_scope AS root_scope
             FROM GroupSubgroup gs
-            INNER JOIN GroupHierarchy gh ON gs.parentGroupId = gh.groupId
+            INNER JOIN GroupHierarchy gh ON gs.parentGroupId = gh.group_id
+        ),
+        RawPermissions AS (
+            SELECT DISTINCT
+                p.code AS code,
+                gh.root_scope AS scope
+            FROM GroupHierarchy gh
+            INNER JOIN GroupPermission gp ON gp.groupId = gh.group_id
+            INNER JOIN Permission p ON p.permissionId = gp.permissionId
         )
-        SELECT DISTINCT p.*
-        FROM Permission p
-        INNER JOIN GroupPermission gp ON gp.permissionId = p.permissionId
-        INNER JOIN GroupHierarchy gh ON gh.groupId = gp.groupId
+        SELECT
+            code,
+            CASE
+                WHEN MAX(CASE WHEN scope = 'GLOBAL' THEN 1 ELSE 0 END) = 1
+                THEN 'GLOBAL'
+                ELSE 'LOCAL'
+            END AS scope
+        FROM RawPermissions
+        GROUP BY code
         """, nativeQuery = true)
-    List<Permission> findEffectivePermissionsByUserId(@Param("userId") Long userId);
-
-    /**
-     * Versão enxuta: retorna apenas os códigos das permissions
-     * (ex: "USER_READ"), ideal para montar GrantedAuthority no Spring Security.
-     */
-    @Query(value = """
-        WITH RECURSIVE GroupHierarchy AS (
-            SELECT ug.groupId AS groupId
-            FROM UserGroup ug
-            WHERE ug.userId = :userId
-
-            UNION
-
-            SELECT gs.childGroupId AS groupId
-            FROM GroupSubgroup gs
-            INNER JOIN GroupHierarchy gh ON gs.parentGroupId = gh.groupId
-        )
-        SELECT DISTINCT p.code
-        FROM Permission p
-        INNER JOIN GroupPermission gp ON gp.permissionId = p.permissionId
-        INNER JOIN GroupHierarchy gh ON gh.groupId = gp.groupId
-        """, nativeQuery = true)
-    List<String> findEffectivePermissionCodesByUserId(@Param("userId") Long userId);
+    List<EffectivePermissionProjection> findEffectivePermissions(@Param("userId") Long userId);
 }
