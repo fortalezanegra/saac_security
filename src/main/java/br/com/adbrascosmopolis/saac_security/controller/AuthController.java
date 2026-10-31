@@ -64,6 +64,7 @@ public class AuthController {
 
         String accessToken = jwtService.tokenGenerate(
                 user.getEmail(),
+                user.getName(),
                 user.getUserId(),
                 user.getUnityId(),
                 authorities
@@ -85,6 +86,7 @@ public class AuthController {
 
         String newAccessToken = jwtService.tokenGenerate(
                 user.getEmail(),
+                user.getName(),
                 user.getUserId(),
                 user.getUnityId(),
                 authorities

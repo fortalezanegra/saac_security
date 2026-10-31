@@ -14,26 +14,26 @@ public interface UserPermissionRepository extends JpaRepository<User, Long> {
 
     @Query(value = """
         WITH RECURSIVE GroupHierarchy AS (
+            -- Grupos diretamente vinculados ao usuário
             SELECT
-                ug.groupId AS group_id,
-                eg.scopeType AS root_scope
+                ug.groupId AS group_id
             FROM UserGroup ug
-            INNER JOIN EntityGroup eg ON eg.groupId = ug.groupId
             WHERE ug.userId = :userId
 
             UNION ALL
 
+            -- Grupos filhos (subgrupos) recursivamente
             SELECT
-                gs.childGroupId AS group_id,
-                gh.root_scope AS root_scope
+                gs.childGroupId AS group_id
             FROM GroupSubgroup gs
             INNER JOIN GroupHierarchy gh ON gs.parentGroupId = gh.group_id
         ),
         RawPermissions AS (
             SELECT DISTINCT
                 p.code AS code,
-                gh.root_scope AS scope
+                eg.scopeType AS scope
             FROM GroupHierarchy gh
+            INNER JOIN EntityGroup eg ON eg.groupId = gh.group_id
             INNER JOIN GroupPermission gp ON gp.groupId = gh.group_id
             INNER JOIN Permission p ON p.permissionId = gp.permissionId
         )

@@ -81,7 +81,7 @@ CROSS JOIN Permission p
 WHERE g.code = 'SECRETARIO'
   AND p.code LIKE 'PERMISSION_SECRETARIA%';
 
--- 5.3 AUXILIAR_SECRETARIA: leitura e relatórios de secretaria
+-- 5.3 AUXILIAR_ADMINISTRATIVO_SECRETARIA: leitura e relatórios de secretaria
 INSERT INTO GroupPermission (groupId, permissionId)
 SELECT g.groupId, p.permissionId
 FROM EntityGroup g
@@ -119,7 +119,7 @@ CROSS JOIN Permission p
 WHERE g.code = 'TESOUREIRO'
   AND p.code LIKE 'PERMISSION_TESOURARIA%';
 
--- 5.7 AUXILIAR_TESOURARIA: leitura e relatórios de tesouraria
+-- 5.7 AUXILIAR_ADMINISTRATIVO_TESOURARIA: leitura e relatórios de tesouraria
 INSERT INTO GroupPermission (groupId, permissionId)
 SELECT g.groupId, p.permissionId
 FROM EntityGroup g
@@ -238,4 +238,8 @@ WHERE u.email = 'admin@adbrascosmopolis.com.br'
 
 
 
-
+INSERT INTO GroupSubgroup (parentGroupId, childGroupId) VALUES
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'SECRETARIO'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'AUXILIAR_ADMINISTRATIVO_SECRETARIA')
+);

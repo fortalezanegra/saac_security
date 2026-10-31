@@ -1,0 +1,129 @@
+
+
+-- ============================================================
+-- 1. PESQUISAR USUARIO POR E-MAIL
+-- ============================================================
+
+SELECT * FROM EntityUser WHERE email = 'raquel@adbrascosmopolis.com.br';
+
+
+-- ============================================================
+-- 2. PESQUISAR GRUPOS DO USUARIO
+-- ============================================================
+
+SELECT ug.*, g.name, g.scopeType, g.code
+FROM UserGroup ug
+JOIN EntityGroup g ON g.groupId = ug.groupId
+JOIN EntityUser u ON u.userId = ug.userId
+WHERE u.email = 'raquel@adbrascosmopolis.com.br';
+
+-- ============================================================
+-- 3. PESQUISAR GRUPOS E PERMISSOES ASSOCIADAS
+-- ============================================================
+
+SELECT g.name, g.scopeType, p.code
+FROM EntityGroup g
+JOIN GroupPermission gp ON gp.groupId = g.groupId
+JOIN Permission p ON p.permissionId = gp.permissionId;
+
+-- ================================================================
+-- 4. ASSOCIAR UM USUARIO (COLUNA EMAIL) A UM GRUPO (COLUNA CODE)
+-- ================================================================
+
+INSERT INTO UserGroup (userId, groupId)
+SELECT u.userId, g.groupId
+FROM EntityUser u
+CROSS JOIN EntityGroup g
+WHERE u.email = 'raquel@adbrascosmopolis.com.br'
+  AND g.code = 'ASSISTENTE_FINANCEIRO';
+
+-- ================================================================
+-- 5. LISTAR TODAS AS ASSOCIAÇÕES DE GRUPOS PAI E FILHO
+-- ================================================================
+
+  SELECT
+    pg.groupId   AS parent_group_id,
+    pg.name      AS parent_group_name,
+    pg.scopeType AS parent_scope,
+    cg.groupId   AS child_group_id,
+    cg.name      AS child_group_name,
+    cg.scopeType AS child_scope
+FROM GroupSubgroup gs
+INNER JOIN EntityGroup pg ON pg.groupId = gs.parentGroupId
+INNER JOIN EntityGroup cg ON cg.groupId = gs.childGroupId
+ORDER BY pg.name, cg.name;
+
+-- ================================================================
+-- 6. LISTAR GRUPOS FILHOS DE UM GRUPO PAI ESPECIFICO
+-- ================================================================
+
+SELECT
+    cg.groupId   AS child_group_id,
+    cg.name      AS child_group_name,
+    cg.code      AS child_group_code,
+    cg.scopeType AS child_scope
+FROM GroupSubgroup gs
+INNER JOIN EntityGroup cg ON cg.groupId = gs.childGroupId
+WHERE gs.parentGroupId = :parentGroupId
+ORDER BY cg.name;
+
+-- ================================================================
+-- 7. LISTAR GRUPOS PAI DE UM GRUPO FILHO ESPECIFICO
+-- ================================================================
+
+SELECT
+    pg.groupId   AS parent_group_id,
+    pg.name      AS parent_group_name,
+    pg.code      AS parent_group_code,
+    pg.scopeType AS parent_scope
+FROM GroupSubgroup gs
+INNER JOIN EntityGroup pg ON pg.groupId = gs.parentGroupId
+WHERE gs.childGroupId = :childGroupId
+ORDER BY pg.name;
+
+-- ================================================================
+-- 8. LISTAR ARVORE COMPLETA DE GRUPOS PAI, FILHO, NETOS E BISNETOS
+-- ================================================================
+
+WITH RECURSIVE GroupTree AS (
+    -- Raiz: todos os grupos que não são filhos de ninguém
+    SELECT
+        g.groupId        AS group_id,
+        g.name           AS group_name,
+        g.scopeType      AS scope,
+        CAST(g.name AS CHAR(1000)) AS path,
+        0                AS level
+    FROM EntityGroup g
+    WHERE g.groupId NOT IN (SELECT childGroupId FROM GroupSubgroup)
+
+    UNION ALL
+
+    -- Recursão: filhos
+    SELECT
+        cg.groupId,
+        cg.name,
+        cg.scopeType,
+        CONCAT(gt.path, ' > ', cg.name),
+        gt.level + 1
+    FROM GroupSubgroup gs
+    INNER JOIN EntityGroup cg ON cg.groupId = gs.childGroupId
+    INNER JOIN GroupTree gt   ON gt.group_id = gs.parentGroupId
+)
+SELECT
+    REPEAT('  ', level) || group_name AS tree,
+    group_id,
+    scope,
+    path
+FROM GroupTree
+ORDER BY path;
+
+-- ============================================================
+-- 9. ASSOCIAR UM GRUPO FILHO A UM GRUPO PAI
+-- ============================================================
+
+INSERT INTO GroupSubgroup (parentGroupId, childGroupId) VALUES
+(
+    (SELECT groupId FROM EntityGroup WHERE code = 'AUXILIAR_ADMINISTRATIVO_TESOURARIA'),
+    (SELECT groupId FROM EntityGroup WHERE code = 'ASSISTENTE_FINANCEIRO')
+);
+

@@ -22,12 +22,13 @@ public class JwtService {
         this.rsaKeyProvider = rsaKeyProvider;
     }
 
-    public String tokenGenerate(String email, Long userId, Long unityId, Collection<String> authorities) {
+    public String tokenGenerate(String email, String name, Long userId, Long unityId, Collection<String> authorities) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(email)
+                .claim("name", name)
                 .claim("userId", userId)
                 .claim("unityId", unityId)
                 .claim("authorities", authorities)

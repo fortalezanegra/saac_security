@@ -2,26 +2,26 @@ package br.com.adbrascosmopolis.saac_security.dto.login;
 
 public class LoginResponseDTO {
 
-    private String token;
+    private String accessToken;
     private String refreshToken;
-    private String tipo = "Bearer";
+    private String tokenType = "Bearer";
 
-    public LoginResponseDTO(String token) {
-        this.token = token;
+    public LoginResponseDTO(String accessToken) {
+        this.accessToken = accessToken;
     }
 
-    public LoginResponseDTO(String token, String refreshToken) {
-        this.token = token;
+    public LoginResponseDTO(String accessToken, String refreshToken) {
+        this.accessToken = accessToken;
         this.refreshToken = refreshToken;
     }
 
-    public LoginResponseDTO(String token, String refreshToken, String tipo) {
-        this.token = token;
+    public LoginResponseDTO(String accessToken, String refreshToken, String tokenType) {
+        this.accessToken = accessToken;
         this.refreshToken = refreshToken;
-        this.tipo = tipo;
+        this.tokenType = tokenType;
     }
 
-    public String getToken() { return token; }
+    public String getAccessToken() { return accessToken; }
     public String getRefreshToken() { return refreshToken; }
-    public String getTipo() { return tipo; }
+    public String getTokenType() { return tokenType; }
 }
