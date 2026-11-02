@@ -15,7 +15,7 @@ SELECT ug.*, g.name, g.scopeType, g.code
 FROM UserGroup ug
 JOIN EntityGroup g ON g.groupId = ug.groupId
 JOIN EntityUser u ON u.userId = ug.userId
-WHERE u.email = 'raquel@adbrascosmopolis.com.br';
+WHERE u.email = 'celio@adbrascosmopolis.com.br';
 
 -- ============================================================
 -- 3. PESQUISAR GRUPOS E PERMISSOES ASSOCIADAS
