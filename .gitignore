@@ -36,6 +36,9 @@ build/
 .env
 *.env
 
+logins_teste
+src/main/java/br/com/adbrascosmopolis/saac_security/desenvolvedor/logins_teste
+
 GerarHash.java
 src/main/java/br/com/adbrascosmopolis/saac_security/model/GerarHash.java
 
